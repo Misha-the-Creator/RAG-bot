@@ -14,6 +14,11 @@ dp = Dispatcher()
 async def handle_start(message: Message):
     await message.answer("Привет")
 
+async def handler(event: dict, context):
+    print(f'{event=}')
+    print(f'{context=}')
+    return {'statusCode': 200, 'body': ''}
+
 
 async def main():
     await dp.start_polling(bot)
