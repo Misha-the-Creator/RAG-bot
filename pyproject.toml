@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "rag-bot"
+version = "0.1.0"
+description = ""
+authors = ["Mikhail Zuev <mikhailneue@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.15"
+aiogram = "^3.24.0"
+python-dotenv = "^1.2.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+bot = "rag_bot.main:run"
