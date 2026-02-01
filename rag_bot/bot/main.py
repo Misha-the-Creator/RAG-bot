@@ -1,11 +1,9 @@
-import os
 import asyncio
-from rag_bot.app.handlers import router
-from aiogram import Bot, Dispatcher
+from rag_bot.bot.logic.handlers import router, bot
+from aiogram import Dispatcher
 from dotenv import load_dotenv
 load_dotenv()
 
-bot = Bot(token=os.getenv('BOT_TOKEN'))
 dp = Dispatcher()
 
 async def main():
