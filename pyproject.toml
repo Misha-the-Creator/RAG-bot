@@ -15,6 +15,11 @@ pgvector = "^0.4.2"
 pinecone = "^8.0.0"
 httpx = "^0.28.1"
 chromadb = "^1.4.1"
+pypdf = "^6.6.2"
+langchain = "^1.2.8"
+langchain-community = "^0.4.1"
+sentence-transformers = "^5.2.2"
+python-multipart = "^0.0.22"
 
 
 [build-system]
@@ -22,4 +27,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-bot = "rag_bot.main:run"
+bot = "rag_bot.bot.main:run"
