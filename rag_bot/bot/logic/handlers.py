@@ -43,22 +43,16 @@ async def handle_query(message: Message, state: FSMContext):
 async def handle_file(message: Message, state: FSMContext, bot):
     if message.document:
         try:
-            
-            await message.answer('Файл получен, отправлю в базу знаний...')
-            
+            await message.answer('Файл получен, отправляю в базу знаний...')
             file_id = message.document.file_id
-            # file_name = message.document.file_id
-            # file_size = message.document.file_id
 
             file = await bot.get_file(file_id)
             file_path = file.file_path
             downloaded_file = await bot.download_file(file_path)
 
             async with httpx.AsyncClient() as client:
-                files = {
-                    'file': (message.document.file_name, downloaded_file, 'application/pdf')
-                }
-                response = await client.post("http://localhost:8000/post-data-to-chroma/", files=files)
+                files = {'file': (message.document.file_name, downloaded_file, 'application/pdf')}
+                response = await client.post("http://localhost:8000/post-data-to-qdrant/", files=files)
             
             if response.status_code == 200:
                 await message.answer("✅ Файл успешно обработан и добавлен в базу!")
@@ -68,3 +62,5 @@ async def handle_file(message: Message, state: FSMContext, bot):
             await state.clear()
         except Exception as e:
             logger1.error(f'Ошибка при подаче на ручку: {e}')
+        finally:
+            await state.clear()
