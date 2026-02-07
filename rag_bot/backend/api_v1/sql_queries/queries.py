@@ -1,0 +1,115 @@
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import insert, select, update, delete
+from rag_bot.backend.db.models.files import Files
+from rag_bot.backend.api_v1.schemas.schemas import FileSchema
+from rag_bot.backend.logger.logger_config import logger1
+
+
+
+
+class Queries:
+    
+    @staticmethod
+    async def query_select_by_input_filename(
+                                       input_filename: str,
+                                       db: AsyncSession) -> Files | None:
+        stmt_1 = select(Files).where(Files.filename == input_filename)
+        result = await db.execute(stmt_1)
+        file_exists = result.scalar_one_or_none()
+
+        return file_exists
+
+    @staticmethod
+    async def query_post_data_to_psql(
+                                input_filename: str,
+                                file: bytes,
+                                db: AsyncSession) -> FileSchema | None:
+        try:
+            file_exists = await Queries.query_select_by_input_filename(input_filename, db)
+
+            if file_exists:
+                logger1.info('Файл с таким именем уже существует в базе данных, пожалуйста, загрузите другой')
+                return None
+
+            stmt_2 = insert(Files).values(filename=input_filename,
+                                        bytes=file).returning(Files)
+            
+            result = await db.execute(stmt_2)
+            db_file = result.scalar_one()
+            await db.commit()
+            logger1.info('Загрузка в PSQL прошла успешно')
+            return FileSchema(filename=db_file.filename)
+            
+        except Exception as e:
+            await db.rollback()
+            logger1.error(f'Неудачно загрузили данные в PostgreSQL: {e}')
+            return None
+
+
+    @staticmethod
+    async def query_get_data_from_psql(input_filename: str,
+                                       db: AsyncSession,
+                                 ) -> FileSchema | None:
+        try:
+            stmt = (select(Files.filename, Files.bytes)
+                    .where(Files.filename == input_filename))
+            
+            result = await db.execute(stmt)
+            db_file = result.scalar_one_or_none()
+            if db_file is None:
+                logger1.warning(f'Файл с именем "{input_filename}" не найден в базе')
+                return False
+
+            logger1.info(f'Файл по имени "{input_filename}" успешно найден')
+            return FileSchema(filename=db_file)
+            
+        except Exception as e:
+            logger1.error(f'Неудачно выгрузили данные по указанному названию файла {input_filename} из PostgreSQL: {e}')
+            return None
+
+
+    @staticmethod
+    async def query_update_data_in_psql(input_filename: str,
+                                  file: bytes,
+                                  db) -> FileSchema | None:
+        try:
+            file_exists = await Queries.query_select_by_input_filename(db, input_filename)
+
+            if file_exists:
+                logger1.info('Обновляю содержимое файла по указанному имени...')
+                stmt_1 = update(Files).values(bytes=file).where(Files.filename == input_filename)
+                result = await db.execute(stmt_1)
+                db_file = result.scalar_one_or_none()
+                await db.commit()
+                logger1.info('Обновление файла в PSQL прошло успешно')
+                return FileSchema(filename=db_file.filename)
+            
+            logger1.warning(f'Файл с именем "{input_filename}" не найден в базе')
+            return None
+            
+        except Exception as e:
+            logger1.error(f'Неудачно обновили данные по указанному названию файла {input_filename} PostgreSQL: {e}')
+            return None
+        
+
+    @staticmethod
+    async def query_delete_data_from_psql(db: AsyncSession,
+                                    input_filename: str) -> FileSchema | None:
+        try:
+            file_exists = await Queries.query_select_by_input_filename(db, input_filename)
+
+            if file_exists:
+                logger1.info('Удаляю содержимое файла по указанному имени...')
+                stmt_1 = delete(Files).where(Files.filename == input_filename)
+                await db.execute(stmt_1)
+                await db.commit()
+                logger1.info('Удаление файла в PSQL прошло успешно')
+                return FileSchema(filename=input_filename)
+            
+            logger1.warning(f'Файл с именем "{input_filename}" не найден в базе')
+            return None
+            
+        except Exception as e:
+            await db.rollback()
+            logger1.error(f'Неудачно удалили данные по указанному названию файла {input_filename} PostgreSQL: {e}')
+            return None

@@ -25,7 +25,6 @@ class FileHandler:
         try:
             loader = PyPDFLoader(self.tmp_path)
             doc = loader.load()
-            # pprint.pp(f'{doc=}')
             pprint.pp(doc[0].metadata)
             print(f'{type(doc[0].metadata)=}')
             len_of_text = len("\n".join(doc.page_content for doc in doc))
