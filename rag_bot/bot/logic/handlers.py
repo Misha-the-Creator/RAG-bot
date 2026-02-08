@@ -10,6 +10,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from rag_bot.backend.logger.logger_config import logger1
+from rag_bot.backend.api_v1.schemas.schemas import FileSchema
 from rag_bot.bot.logic.keyboards import main_key, file_actions_key
 load_dotenv()
 
@@ -25,6 +26,7 @@ class Reg(StatesGroup):
     waiting_for_file = State()
     waiting_for_deleting = State()
     waiting_for_query = State()
+    waiting_for_reading = State()
 
 
 @router.message(Command("start"))
@@ -54,30 +56,46 @@ async def handle_delete_action(message: Message, state: FSMContext):
     logger1.info('В состоянии waiting_for_deleting')
     await state.set_state(Reg.waiting_for_deleting)
 
+@router.message(F.text == 'Посмотреть все загруженные документы 📚')
+async def handle_reading(message: Message):
+    try:
+        logger1.debug('В блоке waiting_for_reading')
+        await message.answer('Вот файлы из БД:')
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f'{api}/psql/get-data-from-psql/')      
+            response.raise_for_status()
+            response_data = response.json()
+            filenames, sizes = response_data['msg']
+            for filename, size in zip(filenames, sizes):
+                logger1.debug(f'{filename=}')
+                await message.answer(f'*{filename}* — {size} байт', parse_mode="MarkdownV2")
+    except Exception as e:
+        logger1.error(f'Произошла ошибка при получении данных: {e}')
+
 @router.message(Reg.waiting_for_deleting)
 async def handle_deleting(message: Message, state: FSMContext, bot: Bot):
     if message.text:
         try:
             file_to_delete = message.text
-            response = requests.delete(f'{api}/psql/delete-data-from-psql/{file_to_delete}')      
-            response.raise_for_status()
-            response_data = response.json()
-            delete = response_data['delete']
-            file_uuid = response_data['qdrant_uuid']
-            logger1.debug(f'Удаляем {file_uuid=}')
-            if delete:
-                response = requests.delete(f'{api}/qdrant/delete-data-from-qdrant/{file_uuid}')      
+            async with httpx.AsyncClient() as client:
+                response = await client.delete(f'{api}/psql/delete-data-from-psql/{file_to_delete}')      
                 response.raise_for_status()
                 response_data = response.json()
                 delete = response_data['delete']
+                file_uuid = response_data['qdrant_uuid']
+                logger1.debug(f'Удаляем {file_uuid=}')
                 if delete:
-                    await message.answer(f"Успешно удалили {file_to_delete} из базы знаний")
-                else:
-                    await message.answer(f"Не получилось удалить {file_to_delete} из базы знаний")
+                    response = await client.delete(f'{api}/qdrant/delete-data-from-qdrant/{file_uuid}')      
+                    response.raise_for_status()
+                    response_data = response.json()
+                    delete = response_data['delete']
+                    if delete:
+                        await message.answer(f"Успешно удалили {file_to_delete} из базы знаний")
+                    else:
+                        await message.answer(f"Не получилось удалить {file_to_delete} из базы знаний")
         except Exception as e:
             logger1.error(f'Произошла ошибка при удалении данных: {e}')
             await state.clear()
-
 
 @router.message(Reg.waiting_for_file)
 async def handle_file(message: Message, state: FSMContext, bot: Bot):

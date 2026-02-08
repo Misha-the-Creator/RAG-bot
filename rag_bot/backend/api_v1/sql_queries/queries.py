@@ -49,20 +49,21 @@ class CRUDPSQL:
 
 
     @staticmethod
-    async def query_get_data_from_psql(db: AsyncSession) -> List[FileSchema] | None:
+    async def query_get_data_from_psql(db: AsyncSession) -> List | None:
         try:
-            stmt = select(Files.filename, Files.size)
+            stmt = select(Files)
             
             result = await db.execute(stmt)
-            db_files = result.all()
+            db_files = result.scalars().all()
             if not db_files:
                 logger1.warning('Файлов в базе данных нет')
                 return None
 
             logger1.info('Файлы в базе данных найдены')
-            filenames_arr = [FileSchema(filename=db_file.filename, size=db_file.size) for db_file in db_files]
+            filenames = [db_file.filename for db_file in db_files]
+            sizes = [db_file.size for db_file in db_files]
             
-            return filenames_arr
+            return (filenames, sizes)
             
         except Exception as e:
             logger1.error(f'Неудачно выгрузили данные по указанному названию файла из PostgreSQL: {e}')

@@ -79,7 +79,7 @@ async def get_data_from_psql(db: AsyncSession = Depends(get_db)):
     load = await query.query_get_data_from_psql(db)
 
     if load:
-        return {'msg': f'{load}'}
+        return {'msg': load}
     elif not load:
         return {'msg': 'Такого документа нет в базе данных'}
     
