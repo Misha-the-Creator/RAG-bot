@@ -7,6 +7,7 @@ from rag_bot.backend.embeddings.embed_pipe import EmbedManager
 from sqlalchemy.ext.asyncio import AsyncSession
 from rag_bot.backend.api_v1.sql_queries.queries import CRUDPSQL
 from fastapi import Depends
+from rag_bot.backend.llm.llm import LLM
 from rag_bot.backend.db.engine import get_db
 
 
@@ -14,7 +15,7 @@ psql_router = APIRouter(prefix="/psql", tags=["PostgreSQL 🐘"])
 qdrant_router = APIRouter(prefix="/qdrant", tags=["Qdrant 🟥"])
 
 embed_manager = EmbedManager('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
-embed_manager.load_model()
+embed_model = embed_manager.load_model()
 
 
 @qdrant_router.post('/post-data-to-qdrant/{file_id}', summary='Загрузка чанков в Qdrant')
@@ -22,15 +23,20 @@ async def post_data_to_qdrant(file_id: str,
                               file: UploadFile = File(...)):
     try:
         file_handler = FileHandler()
-        await file_handler.create_tmp_path(file)
+        
+        tmp_path = await file_handler.create_tmp_path(file)
 
-        splitted_txt, doc_metadata = file_handler.chunk_cutter(5)
+        splitted_txt, doc_metadata = embed_manager.chunk_cutter_semantic(embed_model, tmp_path, 90)
 
+        llm = LLM('/home/misha/Desktop/RAG-bot/rag_bot/backend/llm/llm_path')
+        llm.load_model()
+        chunk_questions = llm.generate(splitted_txt, False)
+        logger1.debug(f'{chunk_questions=}')
         embeddings = embed_manager.generate_embeds(splitted_txt)
 
         db_manager = VectorDBManager()
         db_manager.init_db()
-        file_id = db_manager.add_docs_to_db(splitted_txt, embeddings, doc_metadata, file_id)
+        file_id = db_manager.add_docs_to_db(splitted_txt, embeddings, chunk_questions, doc_metadata, file_id)
         return {'msg': True,
                 'file_id': file_id}
     except Exception as e:

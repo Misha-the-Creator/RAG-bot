@@ -6,6 +6,19 @@ from sentence_transformers import SentenceTransformer
 from rag_bot.backend.logger.logger_config import logger1
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_experimental.text_splitter import SemanticChunker
+
+from langchain_core.embeddings import Embeddings
+
+class SentenceTransformerEmbeddings(Embeddings):
+    def __init__(self, model):
+        self.model = model  # это ваш SentenceTransformer
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        return self.model.encode(texts).tolist()
+
+    def embed_query(self, text: str) -> List[float]:
+        return self.model.encode(text).tolist()
 
 
 class FileHandler:
@@ -18,10 +31,40 @@ class FileHandler:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                 tmp.write(await file.read())
                 self.tmp_path = tmp.name
+                return self.tmp_path
         except Exception as e:
             self.logger.error(f'Что-то пошло не так при формировании документа из вашего PDF-файла: {e}')
         
-    def chunk_cutter(self, chunk_div):
+    # def chunk_cutter_semantic(self, embed_model):
+    #     try:
+
+    #         raw_model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
+
+    #         # Оборачиваем
+    #         embed_model = SentenceTransformerEmbeddings(raw_model)
+
+    #         # Передаём в SemanticChunker
+    #         text_splitter = SemanticChunker(
+    #             embed_model,
+    #             breakpoint_threshold_type='percentile',
+    #             breakpoint_threshold_amount=90
+    #         )
+
+    #         loader = PyPDFLoader(self.tmp_path)
+    #         doc = loader.load()
+    #         pprint.pp(doc[0].metadata)
+    #         print(f'{type(doc[0].metadata)=}')
+    #         text = "\n".join(doc.page_content for doc in doc)
+    #         text_splitter = SemanticChunker(embed_model,
+    #                                         breakpoint_threshold_type='percentile',
+    #                                         breakpoint_threshold_amount=90)
+            
+    #         splitted_text = text_splitter.split_text(text)
+    #         return splitted_text, doc[0].metadata
+    #     except Exception as e:
+    #         self.logger.error(f'Что-то пошло не так при нарезке текста на чанки: {e}')
+    
+    def chunk_cutter_vanilla(self, chunk_div):
         try:
             loader = PyPDFLoader(self.tmp_path)
             doc = loader.load()
@@ -51,6 +94,7 @@ class EmbedManager:
         self.logger.info('Загружаю модель-эмбеддер')
         try:
             self.model = SentenceTransformer(self.model_name)
+            return self.model
         except Exception as e:
             self.logger.info(f'Проблемы при загрузке модели-эмбеддера: {e}')
     
@@ -59,6 +103,26 @@ class EmbedManager:
         try:
             embeds = self.model.encode(texts)
         except Exception as e:
-            self.logger.info(f'Проблемы при генерация эмбеддингов: {e}')
+            self.logger.info(f'Проблемы при генерации эмбеддингов: {e}')
         return embeds
     
+    def chunk_cutter_semantic(self, embed_model, tmp_path, threshold):
+        try:
+            embed_model = SentenceTransformerEmbeddings(self.model)
+            text_splitter = SemanticChunker(
+                embed_model,
+                breakpoint_threshold_type='percentile',
+                breakpoint_threshold_amount=threshold
+            )
+            loader = PyPDFLoader(tmp_path)
+            doc = loader.load()
+            pprint.pp(doc[0].metadata)
+            print(f'{type(doc[0].metadata)=}')
+            text = "\n".join(doc.page_content for doc in doc)
+            text_splitter = SemanticChunker(embed_model,
+                                            breakpoint_threshold_type='percentile',
+                                            breakpoint_threshold_amount=90)
+            splitted_text = text_splitter.split_text(text)
+            return splitted_text, doc[0].metadata
+        except Exception as e:
+            self.logger.error(f'Что-то пошло не так при нарезке текста на чанки: {e}')

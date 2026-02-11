@@ -24,13 +24,15 @@ class VectorDBManager:
                                             vectors_config=models.VectorParams(size=384, distance=models.Distance.COSINE))
             self.logger.info('Создали векторную БД')
     
-    def add_docs_to_db(self, chunks: List[str], embeds: np.ndarray, metadata: dict, file_id: str):
+    def add_docs_to_db(self, chunks: List[str], embeds: np.ndarray, chunk_questions: List[str], metadata: dict, file_id: str):
         self.logger.info('Грузим эмбеды в БД')
         try:
-            for chunk, embed in zip(chunks, embeds):
+            for chunk, embed, question in zip(chunks, embeds, chunk_questions):
                 point_id = str(uuid.uuid4())
                 vector_list = embed.tolist()
                 metadata['file_id'] = file_id
+                metadata['chunk_text'] = chunk
+                metadata['chunk_question'] = question
                 keys_to_remove = ["source", "page", "page_label"]
 
                 for key in keys_to_remove:

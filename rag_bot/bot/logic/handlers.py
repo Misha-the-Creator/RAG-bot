@@ -1,6 +1,5 @@
 import os
 import httpx
-import requests
 from aiogram import F
 from aiogram import Bot
 from aiogram import Router
@@ -10,7 +9,6 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from rag_bot.backend.logger.logger_config import logger1
-from rag_bot.backend.api_v1.schemas.schemas import FileSchema
 from rag_bot.bot.logic.keyboards import main_key, file_actions_key
 load_dotenv()
 
@@ -68,7 +66,7 @@ async def handle_reading(message: Message):
             filenames, sizes = response_data['msg']
             for filename, size in zip(filenames, sizes):
                 logger1.debug(f'{filename=}')
-                await message.answer(f'*{filename}* — {size} байт', parse_mode="MarkdownV2")
+                await message.answer(f'{filename} — {size} байт')
     except Exception as e:
         logger1.error(f'Произошла ошибка при получении данных: {e}')
 
