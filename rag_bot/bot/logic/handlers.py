@@ -54,6 +54,11 @@ async def handle_delete_action(message: Message, state: FSMContext):
     logger1.info('В состоянии waiting_for_deleting')
     await state.set_state(Reg.waiting_for_deleting)
 
+@router.message(F.text == 'Назад к меню ⬅️')
+async def handle_back_option(message: Message, state: FSMContext):
+    await message.reply("Возвратились в начальное меню",
+                        reply_markup=main_key)
+
 @router.message(F.text == 'Посмотреть все загруженные документы 📚')
 async def handle_reading(message: Message):
     try:
@@ -101,20 +106,46 @@ async def handle_file(message: Message, state: FSMContext, bot: Bot):
         try:
             await message.answer('Проверяю на наличие в БД...')
             file_id = message.document.file_id
-            await message.answer('Шаг 1')
             file = await bot.get_file(file_id)
             file_path = file.file_path
             downloaded_file = await bot.download_file(file_path, timeout=1000)
-            await message.answer('Шаг 2')
             async with httpx.AsyncClient() as client:
                 file = {'file': (message.document.file_name, downloaded_file, 'application/pdf')}
                 response_1 = await client.post(f'{api}/psql/post-data-to-psql/', files=file)
-                await message.answer('Шаг 3')
                 response_1.raise_for_status()
                 response_1_data = response_1.json()
                 if response_1_data['load']:
                     response_2 = await client.post(f"{api}/qdrant/post-data-to-qdrant/{response_1_data['file_id']}", files=file)
-                    await message.answer('Шаг 4')
+                    response_2.raise_for_status()
+                    response_2_data = response_2.json()
+                    if response_2_data['msg']:
+                        await message.answer("✅ Файл успешно обработан и добавлен в базу!")
+                    else:
+                        await message.answer(f"❌ Ошибка сервера: {response_2.status_code}")
+                else:
+                     await message.answer("Извините, но такой документ уже содержится в базе\n\nСписок всех доступных документов можно посмотреть, нажав на *Посмотреть список всех загруженных документов 📚*", parse_mode="MarkdownV2")
+            await state.clear()
+        except Exception as e:
+            logger1.error(f'Ошибка при подаче на ручку: {e}')
+        finally:
+            await state.clear()
+
+@router.message(Reg.waiting_for_query)
+async def handle_query_message(message: Message, state: FSMContext, bot: Bot):
+    if message.document:
+        try:
+            await message.answer('Проверяю на наличие в БД...')
+            file_id = message.document.file_id
+            file = await bot.get_file(file_id)
+            file_path = file.file_path
+            downloaded_file = await bot.download_file(file_path, timeout=1000)
+            async with httpx.AsyncClient() as client:
+                file = {'file': (message.document.file_name, downloaded_file, 'application/pdf')}
+                response_1 = await client.post(f'{api}/psql/post-data-to-psql/', files=file)
+                response_1.raise_for_status()
+                response_1_data = response_1.json()
+                if response_1_data['load']:
+                    response_2 = await client.post(f"{api}/qdrant/post-data-to-qdrant/{response_1_data['file_id']}", files=file)
                     response_2.raise_for_status()
                     response_2_data = response_2.json()
                     if response_2_data['msg']:

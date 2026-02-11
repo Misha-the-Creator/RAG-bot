@@ -34,35 +34,6 @@ class FileHandler:
                 return self.tmp_path
         except Exception as e:
             self.logger.error(f'Что-то пошло не так при формировании документа из вашего PDF-файла: {e}')
-        
-    # def chunk_cutter_semantic(self, embed_model):
-    #     try:
-
-    #         raw_model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
-
-    #         # Оборачиваем
-    #         embed_model = SentenceTransformerEmbeddings(raw_model)
-
-    #         # Передаём в SemanticChunker
-    #         text_splitter = SemanticChunker(
-    #             embed_model,
-    #             breakpoint_threshold_type='percentile',
-    #             breakpoint_threshold_amount=90
-    #         )
-
-    #         loader = PyPDFLoader(self.tmp_path)
-    #         doc = loader.load()
-    #         pprint.pp(doc[0].metadata)
-    #         print(f'{type(doc[0].metadata)=}')
-    #         text = "\n".join(doc.page_content for doc in doc)
-    #         text_splitter = SemanticChunker(embed_model,
-    #                                         breakpoint_threshold_type='percentile',
-    #                                         breakpoint_threshold_amount=90)
-            
-    #         splitted_text = text_splitter.split_text(text)
-    #         return splitted_text, doc[0].metadata
-    #     except Exception as e:
-    #         self.logger.error(f'Что-то пошло не так при нарезке текста на чанки: {e}')
     
     def chunk_cutter_vanilla(self, chunk_div):
         try:

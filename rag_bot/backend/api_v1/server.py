@@ -32,11 +32,12 @@ async def post_data_to_qdrant(file_id: str,
         llm.load_model()
         chunk_questions = llm.generate(splitted_txt, False)
         logger1.debug(f'{chunk_questions=}')
-        embeddings = embed_manager.generate_embeds(splitted_txt)
+        chunk_embeddings = embed_manager.generate_embeds(splitted_txt)
+        question_embeddings = embed_manager.generate_embeds(chunk_questions)
 
         db_manager = VectorDBManager()
         db_manager.init_db()
-        file_id = db_manager.add_docs_to_db(splitted_txt, embeddings, chunk_questions, doc_metadata, file_id)
+        file_id = db_manager.add_docs_to_db(splitted_txt, chunk_embeddings, question_embeddings, chunk_questions, doc_metadata, file_id)
         return {'msg': True,
                 'file_id': file_id}
     except Exception as e:
