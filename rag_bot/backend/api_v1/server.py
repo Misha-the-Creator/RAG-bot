@@ -26,23 +26,37 @@ async def post_data_to_qdrant(file_id: str,
         
         tmp_path = await file_handler.create_tmp_path(file)
 
-        splitted_txt, doc_metadata = embed_manager.chunk_cutter_semantic(embed_model, tmp_path, 90)
+        splitted_txt, doc_metadata = file_handler.chunk_cutter_vanilla(5)
 
-        llm = LLM('/home/misha/Desktop/RAG-bot/rag_bot/backend/llm/llm_path')
-        llm.load_model()
-        chunk_questions = llm.generate(splitted_txt, False)
-        logger1.debug(f'{chunk_questions=}')
+        # llm = LLM('/home/misha/Desktop/RAG-bot/rag_bot/backend/llm/llm_path')
+        # llm.load_model()
+        # chunk_questions = llm.generate(splitted_txt, False)
+        # logger1.debug(f'{chunk_questions=}')
         chunk_embeddings = embed_manager.generate_embeds(splitted_txt)
-        question_embeddings = embed_manager.generate_embeds(chunk_questions)
+        # question_embeddings = embed_manager.generate_embeds(chunk_questions)
 
         db_manager = VectorDBManager()
         db_manager.init_db()
-        file_id = db_manager.add_docs_to_db(splitted_txt, chunk_embeddings, question_embeddings, chunk_questions, doc_metadata, file_id)
+        file_id = db_manager.add_docs_to_db(splitted_txt, chunk_embeddings, doc_metadata, file_id)
         return {'msg': True,
                 'file_id': file_id}
     except Exception as e:
         logger1.error(f'Неудачно загрузили данные в qdrant: {e}')
         return {'msg': False}
+    
+@qdrant_router.get('/search-qdrant/{query}', summary='Поиск в Qdrant по запросу')
+async def search_qdrant(query: str):
+    try:
+        db_manager = VectorDBManager()
+        db_manager.init_db()
+        logger1.debug('шаг 1')
+        query_embedding = embed_manager.generate_embeds(query)
+        logger1.debug('шаг 2')
+        reranked_results = db_manager.search(query_embedding, query, 5)
+        return {'search': reranked_results}
+    except Exception as e:
+        logger1.error(f'Что-то пошло не так при similarity search: {e}')
+        return {'search': False}
     
 @qdrant_router.delete('/delete-data-from-qdrant/{file_id}', summary='Удаление чанков в Qdrant по uuid')
 async def delete_data_from_qdrant(file_id: str):

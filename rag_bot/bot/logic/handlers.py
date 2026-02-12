@@ -132,30 +132,16 @@ async def handle_file(message: Message, state: FSMContext, bot: Bot):
 
 @router.message(Reg.waiting_for_query)
 async def handle_query_message(message: Message, state: FSMContext, bot: Bot):
-    if message.document:
+    if message.text:
         try:
-            await message.answer('Проверяю на наличие в БД...')
-            file_id = message.document.file_id
-            file = await bot.get_file(file_id)
-            file_path = file.file_path
-            downloaded_file = await bot.download_file(file_path, timeout=1000)
+            query = message.text
             async with httpx.AsyncClient() as client:
-                file = {'file': (message.document.file_name, downloaded_file, 'application/pdf')}
-                response_1 = await client.post(f'{api}/psql/post-data-to-psql/', files=file)
-                response_1.raise_for_status()
-                response_1_data = response_1.json()
-                if response_1_data['load']:
-                    response_2 = await client.post(f"{api}/qdrant/post-data-to-qdrant/{response_1_data['file_id']}", files=file)
-                    response_2.raise_for_status()
-                    response_2_data = response_2.json()
-                    if response_2_data['msg']:
-                        await message.answer("✅ Файл успешно обработан и добавлен в базу!")
-                    else:
-                        await message.answer(f"❌ Ошибка сервера: {response_2.status_code}")
-                else:
-                     await message.answer("Извините, но такой документ уже содержится в базе\n\nСписок всех доступных документов можно посмотреть, нажав на *Посмотреть список всех загруженных документов 📚*", parse_mode="MarkdownV2")
-            await state.clear()
+                resp = await client.get(f'{api}/qdrant/search-qdrant/{query}')
+                resp.raise_for_status()
+                resp = resp.json()
+
+                top_answer = resp['search']
+
+                await message.answer(f"{top_answer}")
         except Exception as e:
-            logger1.error(f'Ошибка при подаче на ручку: {e}')
-        finally:
-            await state.clear()
+            logger1.error(f'Ошибка при sim_search: {e}')
