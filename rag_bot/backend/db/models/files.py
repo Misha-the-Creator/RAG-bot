@@ -11,10 +11,3 @@ class Files(Base):
     bytes = Column(LargeBinary, nullable=False)
     size = Column(BigInteger)
     qdrant_file_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=True)
-
-class Question_Chunk(Base):
-    __tablename__ = 'question_chunk'
-
-    id = Column(Integer, primary_key=True)
-    question_uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=True)
-    chunk_uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=True)

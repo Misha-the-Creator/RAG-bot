@@ -1,10 +1,10 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import insert, select, update, delete
-from rag_bot.backend.db.models.files import Files
-from rag_bot.backend.api_v1.schemas.schemas import FileSchema
-from rag_bot.backend.logger.logger_config import logger1
-from typing import List
 import uuid
+from typing import List
+from sqlalchemy.ext.asyncio import AsyncSession
+from rag_bot.backend.db.models.files import Files
+from sqlalchemy import insert, select, update, delete
+from rag_bot.backend.logger.logger_config import logger1
+from rag_bot.backend.api_v1.schemas.schemas import FileSchema
 
 
 class CRUDPSQL:

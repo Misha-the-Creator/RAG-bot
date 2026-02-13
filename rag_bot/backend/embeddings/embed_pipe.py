@@ -1,3 +1,4 @@
+import os
 import pprint
 import tempfile
 from typing import List
@@ -35,6 +36,11 @@ class FileHandler:
         except Exception as e:
             self.logger.error(f'Что-то пошло не так при формировании документа из вашего PDF-файла: {e}')
     
+    def cleanup(self):
+        if self.tmp_path and os.path.exists(self.tmp_path):
+            os.unlink(self.tmp_path)
+            self.tmp_path = None
+
     def chunk_cutter_vanilla(self, chunk_div):
         try:
             loader = PyPDFLoader(self.tmp_path)
@@ -69,7 +75,6 @@ class EmbedManager:
         self.logger.info('Загружаю модель-эмбеддер')
         try:
             self.model = SentenceTransformer(self.model_name)
-            return self.model
         except Exception as e:
             self.logger.info(f'Проблемы при загрузке модели-эмбеддера: {e}')
     

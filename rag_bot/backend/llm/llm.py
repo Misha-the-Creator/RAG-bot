@@ -10,8 +10,8 @@ class LLM:
         self.model_path = model_path
 
     def load_model(self):
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
         self.model = AutoModelForCausalLM.from_pretrained(self.model_path, torch_dtype="auto", device_map="auto")
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
     
     def generate_by_query(self, query, think):
 
@@ -39,16 +39,25 @@ class LLM:
         
         return content
 
-    def generate(self, chunk_list: List[str], think: bool, user_query):
-        allowed_tokens = ["да", "нет"]
-        query = f"Тебе даны следующие данные:\n\nf'{'\n'.join(chunk_list)}\n\nДают ли хоть одно из них ответ на следующий вопрос?: {user_query}\n\nОтвет ТОЛЬКО 'да' или 'нет'"
-        yes_or_no = None
-        while yes_or_no not in allowed_tokens:
-            self.logger.debug(f'{yes_or_no=}')
-            yes_or_no = self.generate_by_query(query=query, think=think)
-            if yes_or_no == 'да':
-                query = f"Тебе даны следующие данные:\n\nf'{'\n'.join(chunk_list)}\n\nНа основании этих данны ответь на следующий вопрос: {user_query}"
-                return self.generate_by_query(query=query, think=think)
-            elif yes_or_no == 'нет':
-                return 'К сожалению, знаний в базе не хватает, чтобы ответить на данный вопрос :('
+    def generate(self, chunk_list: List[str], think: bool, user_query: str) -> str:
+        chunks_text = "\n".join(chunk_list)
+        check_query = (
+            f"Тебе даны следующие данные:\n\n{chunks_text}\n\n"
+            f"Дают ли хоть одно из них ответ на следующий вопрос?: {user_query}\n\n"
+            f"Ответ ТОЛЬКО 'да' или 'нет'"
+        )
+
+        for _ in range(5):
+            raw_answer = self.generate_by_query(query=check_query, think=think)
+            yes_no = raw_answer.strip().lower()
+            if yes_no == "да":
+                answer_query = (
+                    f"Тебе даны следующие данные:\n\n{chunks_text}\n\n"
+                    f"На основании этих данных ответь на следующий вопрос: {user_query}"
+                )
+                return self.generate_by_query(query=answer_query, think=think)
+            elif yes_no == "нет":
+                return "К сожалению, знаний в базе не хватает, чтобы ответить на данный вопрос :("
+
+        return "Не удалось определить, содержится ли ответ в предоставленных данных."
             

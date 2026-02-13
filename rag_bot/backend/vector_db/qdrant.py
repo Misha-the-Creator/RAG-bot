@@ -17,6 +17,7 @@ class VectorDBManager:
         self.collection_name_chunks = collection_name_chunks
         self.collection_name_questions = collection_name_questions
         self.cross_encoder_model_name = cross_encoder_model_name
+        self.model = CrossEncoder(self.cross_encoder_model_name)
         self.client = None
         self.collection = None
     
@@ -89,8 +90,7 @@ class VectorDBManager:
         return re.sub(r'\s+', ' ', text).strip()
     
     def reranking(self, query_chunks_pairs, chunks, rerank_top_k):
-        model = CrossEncoder(self.cross_encoder_model_name)
-        scores = model.predict(query_chunks_pairs)
+        scores = self.model.predict(query_chunks_pairs)
         scored_docs = sorted(zip(chunks, scores), key=lambda x: x[1], reverse=True)
         self.logger.debug("После реранкинга:")
         for doc, _ in scored_docs[:rerank_top_k]:

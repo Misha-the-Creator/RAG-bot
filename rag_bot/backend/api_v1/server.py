@@ -1,14 +1,14 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import Depends
 from fastapi import UploadFile, File
+from fastapi import FastAPI, APIRouter
+from rag_bot.backend.llm.llm import LLM
+from rag_bot.backend.db.engine import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
 from rag_bot.backend.logger.logger_config import logger1
 from rag_bot.backend.vector_db.qdrant import VectorDBManager
 from rag_bot.backend.embeddings.embed_pipe import FileHandler
 from rag_bot.backend.embeddings.embed_pipe import EmbedManager
-from sqlalchemy.ext.asyncio import AsyncSession
 from rag_bot.backend.api_v1.sql_queries.queries import CRUDPSQL
-from fastapi import Depends
-from rag_bot.backend.llm.llm import LLM
-from rag_bot.backend.db.engine import get_db
 
 
 psql_router = APIRouter(prefix="/psql", tags=["PostgreSQL 🐘"])
@@ -26,9 +26,11 @@ async def post_data_to_qdrant(file_id: str,
                               file: UploadFile = File(...)):
     try:
         file_handler = FileHandler()
+        db_manager = VectorDBManager()
+
+        await file_handler.create_tmp_path(file)
         splitted_txt, doc_metadata = file_handler.chunk_cutter_vanilla(2)
         chunk_embeddings = embed_manager.generate_embeds(splitted_txt)
-        db_manager = VectorDBManager()
         db_manager.init_db()
         file_id = db_manager.add_docs_to_db(splitted_txt, chunk_embeddings, doc_metadata, file_id)
         return {'msg': True,
@@ -38,15 +40,17 @@ async def post_data_to_qdrant(file_id: str,
         logger1.error(f'Неудачно загрузили данные в qdrant: {e}')
         return {'msg': False}
     
+    finally:
+        file_handler.cleanup()
+    
 
 @qdrant_router.get('/search-qdrant/{query}', summary='Поиск в Qdrant по запросу')
 async def search_qdrant(query: str):
     try:
         db_manager = VectorDBManager()
+
         db_manager.init_db()
-        logger1.debug('шаг 1')
         query_embedding = embed_manager.generate_embeds(query)
-        logger1.debug('шаг 2')
         reranked_results = db_manager.search(query_embedding, query, 5)
         llm_response = llm.generate(chunk_list=reranked_results, think=False, user_query=query)
         return {'llm_response': llm_response}
@@ -60,6 +64,7 @@ async def search_qdrant(query: str):
 async def delete_data_from_qdrant(file_id: str):
     try:
         db_manager = VectorDBManager()
+
         db_manager.init_db()
         delete = db_manager.delete_docs_from_db(file_id)
         return {'delete': delete}

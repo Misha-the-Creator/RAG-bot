@@ -27,7 +27,10 @@ target_metadata = Base.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
-from rag_bot.backend.db.models.db_helper import db_url  # noqa: E402
+import os  # noqa: E402
+from dotenv import load_dotenv  # noqa: E402
+load_dotenv()
+db_url = f'postgresql+asyncpg://{os.getenv('DB_USER')}:{os.getenv('DB_PASS')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}'
 config.set_main_option('sqlalchemy.url', db_url)
 
 
