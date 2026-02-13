@@ -112,6 +112,8 @@ class VectorDBManager:
             old_pos = original_positions.get(chunk, -1)
             self.logger.debug(f"Чанк '{chunk[:50]}...' | Был на месте: {old_pos} → стал на месте: {new_pos}")
         
+        self.logger.debug(f'{reranked_chunks=}')
+
         return reranked_chunks
 
     def search(self, query_embed, query, lim):
@@ -138,6 +140,6 @@ class VectorDBManager:
 
         pairs = [[query, chunk] for chunk in chunks]
 
-        reranked = self.reranking(pairs, chunks, 5)
+        reranked = self.reranking(pairs, chunks, 3)
 
         return reranked

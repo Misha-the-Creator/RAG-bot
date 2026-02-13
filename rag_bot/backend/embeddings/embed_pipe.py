@@ -44,10 +44,10 @@ class FileHandler:
             len_of_text = len("\n".join(doc.page_content for doc in doc))
             text = "\n".join(doc.page_content for doc in doc)
             
-            if len(text) < 1500:
-                chunk_size = int(len_of_text/chunk_div)
+            if len(text) < 1000:
+                chunk_size = len_of_text
             else:
-                chunk_size = 1500
+                chunk_size = 1000
             text_splitter = RecursiveCharacterTextSplitter(separators=["\n\n", "\n", " ", ""],
                                                         chunk_size=chunk_size,
                                                         length_function=len,

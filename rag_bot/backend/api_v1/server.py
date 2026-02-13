@@ -17,33 +17,28 @@ qdrant_router = APIRouter(prefix="/qdrant", tags=["Qdrant 🟥"])
 embed_manager = EmbedManager('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
 embed_model = embed_manager.load_model()
 
+llm = LLM('/home/misha/Desktop/RAG-bot/rag_bot/backend/llm/llm_path')
+llm.load_model()
+
 
 @qdrant_router.post('/post-data-to-qdrant/{file_id}', summary='Загрузка чанков в Qdrant')
 async def post_data_to_qdrant(file_id: str,
                               file: UploadFile = File(...)):
     try:
         file_handler = FileHandler()
-        
-        tmp_path = await file_handler.create_tmp_path(file)
-
-        splitted_txt, doc_metadata = file_handler.chunk_cutter_vanilla(5)
-
-        # llm = LLM('/home/misha/Desktop/RAG-bot/rag_bot/backend/llm/llm_path')
-        # llm.load_model()
-        # chunk_questions = llm.generate(splitted_txt, False)
-        # logger1.debug(f'{chunk_questions=}')
+        splitted_txt, doc_metadata = file_handler.chunk_cutter_vanilla(2)
         chunk_embeddings = embed_manager.generate_embeds(splitted_txt)
-        # question_embeddings = embed_manager.generate_embeds(chunk_questions)
-
         db_manager = VectorDBManager()
         db_manager.init_db()
         file_id = db_manager.add_docs_to_db(splitted_txt, chunk_embeddings, doc_metadata, file_id)
         return {'msg': True,
                 'file_id': file_id}
+    
     except Exception as e:
         logger1.error(f'Неудачно загрузили данные в qdrant: {e}')
         return {'msg': False}
     
+
 @qdrant_router.get('/search-qdrant/{query}', summary='Поиск в Qdrant по запросу')
 async def search_qdrant(query: str):
     try:
@@ -53,11 +48,14 @@ async def search_qdrant(query: str):
         query_embedding = embed_manager.generate_embeds(query)
         logger1.debug('шаг 2')
         reranked_results = db_manager.search(query_embedding, query, 5)
-        return {'search': reranked_results}
+        llm_response = llm.generate(chunk_list=reranked_results, think=False, user_query=query)
+        return {'llm_response': llm_response}
+    
     except Exception as e:
         logger1.error(f'Что-то пошло не так при similarity search: {e}')
-        return {'search': False}
+        return {'llm_response': False}
     
+
 @qdrant_router.delete('/delete-data-from-qdrant/{file_id}', summary='Удаление чанков в Qdrant по uuid')
 async def delete_data_from_qdrant(file_id: str):
     try:
@@ -112,7 +110,6 @@ async def update_data_in_psql(file_name: str,
     query = CRUDPSQL()
     file_bytes = await file.read()
     file_size = file.size
-
     load = await query.query_update_data_in_psql(file_name,
                                                  file_size,
                                                  file_bytes,
@@ -128,7 +125,6 @@ async def update_data_in_psql(file_name: str,
 async def delete_data_from_psql(file_name: str,
                                 db: AsyncSession = Depends(get_db)):
     query = CRUDPSQL()
-
     delete = await query.query_delete_data_from_psql(file_name,
                                                      db)
 

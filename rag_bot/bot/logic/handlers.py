@@ -135,13 +135,13 @@ async def handle_query_message(message: Message, state: FSMContext, bot: Bot):
     if message.text:
         try:
             query = message.text
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=60) as client:
                 resp = await client.get(f'{api}/qdrant/search-qdrant/{query}')
                 resp.raise_for_status()
                 resp = resp.json()
 
-                top_answer = resp['search']
+                top_answer = resp['llm_response']
 
                 await message.answer(f"{top_answer}")
-        except Exception as e:
-            logger1.error(f'Ошибка при sim_search: {e}')
+        except Exception:
+            logger1.exception("Ошибка при выполнении запроса к /search-qdrant")
