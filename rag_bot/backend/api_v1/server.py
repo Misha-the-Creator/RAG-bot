@@ -10,7 +10,6 @@ from rag_bot.backend.embeddings.embed_pipe import FileHandler
 from rag_bot.backend.embeddings.embed_pipe import EmbedManager
 from rag_bot.backend.api_v1.sql_queries.queries import CRUDPSQL
 
-
 psql_router = APIRouter(prefix="/psql", tags=["PostgreSQL 🐘"])
 qdrant_router = APIRouter(prefix="/qdrant", tags=["Qdrant 🟥"])
 
